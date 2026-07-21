@@ -1,26 +1,20 @@
-<!DOCTYPE html> <!-- HTML5 document declaration -->
+<!DOCTYPE html>
 <html>
 <head>
-    <title>Icyarr Control Panel</title> <!-- Browser tab title -->
+    <title>Icyarr Control Panel</title>
 </head>
 
-<body> <!-- All visible content lives here -->
-
+<body>
 
     <!-- ========================= -->
     <!-- M3U LOADER SECTION        -->
     <!-- ========================= -->
 
-    <h2>M3U Loader</h2> <!-- Section title -->
+    <h2>M3U Loader</h2>
 
     <input id="m3uInput" type="text" placeholder="Enter M3U URL">
-    <!-- Text box for entering an M3U playlist URL -->
-
     <button onclick="loadM3U()">Load M3U</button>
-    <!-- Button that triggers the loadM3U() function -->
-
     <pre id="m3uResult"></pre>
-    <!-- Displays formatted JSON results from backend -->
 
 
     <!-- ========================= -->
@@ -30,13 +24,8 @@
     <h2>Stream Tester</h2>
 
     <input id="streamInput" type="text" placeholder="Enter Stream URL">
-    <!-- Text box for entering a direct stream URL -->
-
     <button onclick="testStream()">Test Stream</button>
-    <!-- Button that triggers testStream() -->
-
     <pre id="streamResult"></pre>
-    <!-- Shows backend response -->
 
 
     <!-- ========================= -->
@@ -46,20 +35,14 @@
     <h2>Local Streams</h2>
 
     <button onclick="loadLocalStreams()">Load Local Streams</button>
-    <!-- Button that fetches the local list -->
 
     <div id="localStreamsEditor"></div>
-    <!-- Dynamic UI area for editing name/group/delete -->
-
     <pre id="localStreamsResult"></pre>
-    <!-- Raw JSON display -->
 
 
-<script> <!-- Start of JavaScript -->
-
-
+<script>
     // ============================
-    // FUNCTION: Load M3U
+    // Load M3U
     // ============================
     async function loadM3U() {
         const url = document.getElementById("m3uInput").value;
@@ -71,14 +54,13 @@
         });
 
         const data = await response.json();
-
         document.getElementById("m3uResult").textContent =
             JSON.stringify(data, null, 2);
     }
 
 
     // ============================
-    // FUNCTION: Test Stream
+    // Test Stream
     // ============================
     async function testStream() {
         const url = document.getElementById("streamInput").value;
@@ -90,24 +72,21 @@
         });
 
         const data = await response.json();
-
         document.getElementById("streamResult").textContent =
             JSON.stringify(data, null, 2);
     }
 
 
     // ============================
-    // FUNCTION: Load Local Streams
+    // Load Local Streams
     // ============================
     async function loadLocalStreams() {
         const response = await fetch("/local_streams");
         const data = await response.json();
 
-        // Show raw JSON
         document.getElementById("localStreamsResult").textContent =
             JSON.stringify(data, null, 2);
 
-        // Clear editor UI
         const editor = document.getElementById("localStreamsEditor");
         editor.innerHTML = "";
 
@@ -117,8 +96,6 @@
 
             const div = document.createElement("div");
             div.style.marginBottom = "10px";
-            // Container for each station
-
 
             // Display URL
             div.appendChild(document.createTextNode(channel.url));
@@ -158,7 +135,7 @@
                     })
                 });
 
-                loadLocalStreams(); // Refresh UI
+                loadLocalStreams();
             };
 
 
@@ -174,7 +151,21 @@
                     method: "DELETE"
                 });
 
-                loadLocalStreams(); // Refresh UI
+                loadLocalStreams();
+            };
+
+
+            // ============================
+            // PLAY BUTTON
+            // ============================
+            const playBtn = document.createElement("button");
+            playBtn.textContent = "Play";
+            playBtn.style.marginLeft = "10px";
+
+            playBtn.onclick = () => {
+                // Create a temporary audio player
+                const audio = new Audio(channel.url);
+                audio.play();
             };
 
 
@@ -185,13 +176,4 @@
             div.appendChild(groupInput);
             div.appendChild(saveBtn);
             div.appendChild(deleteBtn);
-
-            editor.appendChild(div);
-        });
-    }
-
-
-</script> <!-- End of JavaScript -->
-
-</body>
-</html>
+            div.appendChild(playBtn);
