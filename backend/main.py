@@ -1,5 +1,5 @@
 # Import FastAPI to create the backend API server
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 # Import BaseModel to define request body structures
 from pydantic import BaseModel
@@ -58,6 +58,41 @@ def merge_metadata(existing, incoming):
 
     # Return the merged channel object
     return merged
+
+
+# ============================================================
+# TICKARR TEXT BUILDER
+# ============================================================
+
+def build_tickarr_text(channel: dict) -> str:
+    """
+    Build a single plain-text 'Now Playing' string for Tickarr
+    from this channel's metadata.
+    """
+
+    parts = []
+
+    icy_title = channel.get("icy_title") or channel.get("stream_title")
+    name = channel.get("name") or channel.get("tvg_name")
+    group = channel.get("group")
+    bitrate = channel.get("bitrate")
+
+    if icy_title:
+        parts.append(icy_title)
+
+    if name:
+        parts.append(name)
+
+    if group:
+        parts.append(group)
+
+    if bitrate:
+        parts.append(f"{bitrate}kbps")
+
+    if not parts:
+        return "Unknown Station — No metadata available"
+
+    return " — ".join(parts)
 
 
 # ============================================================
@@ -198,6 +233,7 @@ def update_channel(req: UpdateChannel):
     # If no channel matches the URL
     return {"status": "not_found", "url": req.url}
 
+
 # ============================================================
 # DELETE CHANNEL ENDPOINT
 # ============================================================
@@ -218,3 +254,22 @@ def delete_channel(url: str):
 
     # If no channel matched the URL, return a not-found response
     return {"status": "not_found", "url": url}
+
+
+# ============================================================
+# TICKARR TEXT ENDPOINT
+# ============================================================
+
+@app.get("/tickarr_text")
+def tickarr_text(url: str):
+    """
+    Tickarr calls this with the stream URL.
+    We look up the channel, build a Now Playing string,
+    and return it as { "text": "..." }.
+    """
+
+    for ch in local_streams:
+        if ch.get("url") == url:
+            return {"text": build_tickarr_text(ch)}
+
+    raise HTTPException(status_code=404, detail="Channel not found")
