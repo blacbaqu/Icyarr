@@ -2,6 +2,29 @@
 <html>
 <head>
     <title>Icyarr Control Panel</title>
+    <style>
+        /* Simple styling for the persistent player bar */
+        #playerBar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #222;
+            color: #fff;
+            padding: 8px 12px;
+            font-family: sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.4);
+        }
+        #playerInfo {
+            flex: 1;
+        }
+        body {
+            margin-bottom: 60px; /* Make room for player bar */
+        }
+    </style>
 </head>
 
 <body>
@@ -40,7 +63,78 @@
     <pre id="localStreamsResult"></pre>
 
 
+    <!-- ========================= -->
+    <!-- PERSISTENT PLAYER BAR     -->
+    <!-- ========================= -->
+
+    <div id="playerBar">
+        <div id="playerInfo">Now Playing: None</div>
+
+        <button id="playerPlayBtn">Play</button>
+        <button id="playerPauseBtn">Pause</button>
+        <button id="playerStopBtn">Stop</button>
+
+        <label>
+            Volume
+            <input id="playerVolume" type="range" min="0" max="1" step="0.05" value="1">
+        </label>
+    </div>
+
+
 <script>
+    // Global audio player and current station
+    let audioPlayer = new Audio();
+    let currentStation = null;
+
+    // Hook up player bar controls
+    const playerInfo   = document.getElementById("playerInfo");
+    const playerPlay   = document.getElementById("playerPlayBtn");
+    const playerPause  = document.getElementById("playerPauseBtn");
+    const playerStop   = document.getElementById("playerStopBtn");
+    const playerVolume = document.getElementById("playerVolume");
+
+    playerPlay.onclick = () => {
+        if (currentStation && currentStation.url) {
+            audioPlayer.play();
+        }
+    };
+
+    playerPause.onclick = () => {
+        audioPlayer.pause();
+    };
+
+    playerStop.onclick = () => {
+        audioPlayer.pause();
+        audioPlayer.src = "";
+        currentStation = null;
+        updatePlayerUI();
+    };
+
+    playerVolume.oninput = () => {
+        audioPlayer.volume = parseFloat(playerVolume.value);
+    };
+
+    function updatePlayerUI() {
+        if (!currentStation) {
+            playerInfo.textContent = "Now Playing: None";
+            return;
+        }
+
+        const name =
+            currentStation.name ||
+            currentStation.tvg_name ||
+            "Unknown Station";
+
+        const group = currentStation.group || "";
+
+        if (group) {
+            playerInfo.textContent = `Now Playing: ${name} — ${group}`;
+        } else {
+            playerInfo.textContent = `Now Playing: ${name}`;
+        }
+    }
+
+
     // ============================
     // Load M3U
     // ============================
@@ -102,25 +196,17 @@
             div.appendChild(document.createElement("br"));
 
 
-            // ============================
             // NAME INPUT
-            // ============================
             const nameInput = document.createElement("input");
             nameInput.value = channel.name || "";
             nameInput.placeholder = "Name";
 
-
-            // ============================
             // GROUP INPUT
-            // ============================
             const groupInput = document.createElement("input");
             groupInput.value = channel.group || "";
             groupInput.placeholder = "Group";
 
-
-            // ============================
             // SAVE BUTTON
-            // ============================
             const saveBtn = document.createElement("button");
             saveBtn.textContent = "Save";
 
@@ -138,10 +224,7 @@
                 loadLocalStreams();
             };
 
-
-            // ============================
             // DELETE BUTTON
-            // ============================
             const deleteBtn = document.createElement("button");
             deleteBtn.textContent = "Delete";
             deleteBtn.style.marginLeft = "10px";
@@ -154,26 +237,30 @@
                 loadLocalStreams();
             };
 
-
-            // ============================
-            // PLAY BUTTON
-            // ============================
+            // PLAY BUTTON (per station)
             const playBtn = document.createElement("button");
             playBtn.textContent = "Play";
             playBtn.style.marginLeft = "10px";
 
             playBtn.onclick = () => {
-                // Create a temporary audio player
-                const audio = new Audio(channel.url);
-                audio.play();
+                currentStation = channel;
+                audioPlayer.src = channel.url;
+                audioPlayer.play();
+                updatePlayerUI();
             };
 
-
-            // ============================
-            // ADD ELEMENTS TO UI
-            // ============================
+            // Add elements to UI
             div.appendChild(nameInput);
             div.appendChild(groupInput);
             div.appendChild(saveBtn);
             div.appendChild(deleteBtn);
             div.appendChild(playBtn);
+
+            editor.appendChild(div);
+        });
+    }
+
+</script>
+
+</body>
+</html>
