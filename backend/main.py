@@ -197,3 +197,24 @@ def update_channel(req: UpdateChannel):
 
     # If no channel matches the URL
     return {"status": "not_found", "url": req.url}
+
+# ============================================================
+# DELETE CHANNEL ENDPOINT
+# ============================================================
+
+@app.delete("/delete_channel")
+def delete_channel(url: str):
+    # Loop through all stored channels
+    for ch in local_streams:
+
+        # Check if this channel's URL matches the one we want to delete
+        if ch["url"] == url:
+
+            # Remove the channel object from the list
+            local_streams.remove(ch)
+
+            # Return confirmation that deletion succeeded
+            return {"status": "deleted", "url": url}
+
+    # If no channel matched the URL, return a not-found response
+    return {"status": "not_found", "url": url}
