@@ -1,0 +1,188 @@
+<!DOCTYPE html> <!-- Tells the browser this is an HTML5 document -->
+<html> <!-- Root element of the webpage -->
+<head> <!-- Contains metadata and page settings -->
+
+    <title>Icyarr Control Panel</title> <!-- Title shown in browser tab -->
+
+</head>
+<body> <!-- Everything visible on the page lives inside <body> -->
+
+
+    <!-- ========================= -->
+    <!-- M3U LOADER SECTION        -->
+    <!-- ========================= -->
+
+    <h2>M3U Loader</h2> <!-- Section title -->
+
+    <input id="m3uInput" type="text" placeholder="Enter M3U URL">
+    <!-- Text box where user pastes an M3U URL -->
+
+    <button onclick="loadM3U()">Load M3U</button>
+    <!-- Button that triggers the loadM3U() JavaScript function -->
+
+    <pre id="m3uResult"></pre>
+    <!-- <pre> preserves formatting; shows JSON results from backend -->
+
+
+    <!-- ========================= -->
+    <!-- STREAM TESTER SECTION     -->
+    <!-- ========================= -->
+
+    <h2>Stream Tester</h2> <!-- Section title -->
+
+    <input id="streamInput" type="text" placeholder="Enter Stream URL">
+    <!-- Text box for entering a direct MP3/AAC/Icecast stream URL -->
+
+    <button onclick="testStream()">Test Stream</button>
+    <!-- Button that triggers testStream() -->
+
+    <pre id="streamResult"></pre>
+    <!-- Shows JSON response from backend -->
+
+
+    <!-- ========================= -->
+    <!-- LOCAL STREAM LIST         -->
+    <!-- ========================= -->
+
+    <h2>Local Streams</h2> <!-- Section title -->
+
+    <button onclick="loadLocalStreams()">Load Local Streams</button>
+    <!-- Button that fetches the local list from backend -->
+
+    <div id="localStreamsEditor"></div>
+    <!-- Dynamic UI area where name/group editing fields appear -->
+
+    <pre id="localStreamsResult"></pre>
+    <!-- Shows raw JSON of local stream list -->
+
+
+<script> <!-- Start of JavaScript section -->
+
+
+    // ============================
+    // FUNCTION: Load M3U
+    // ============================
+    async function loadM3U() {
+        const url = document.getElementById("m3uInput").value;
+        // Reads the text from the M3U input box
+
+        const response = await fetch("/load_m3u", {
+            method: "POST", // HTTP POST request
+            headers: { "Content-Type": "application/json" }, // JSON body
+            body: JSON.stringify({ url }) // Sends { "url": "..." }
+        });
+
+        const data = await response.json();
+        // Converts backend response into a JS object
+
+        document.getElementById("m3uResult").textContent =
+            JSON.stringify(data, null, 2);
+        // Displays formatted JSON in the <pre> box
+    }
+
+
+    // ============================
+    // FUNCTION: Test Stream
+    // ============================
+    async function testStream() {
+        const url = document.getElementById("streamInput").value;
+        // Reads stream URL from input box
+
+        const response = await fetch("/test_stream", {
+            method: "POST", // HTTP POST request
+            headers: { "Content-Type": "application/json" }, // JSON body
+            body: JSON.stringify({ url }) // Sends { "url": "..." }
+        });
+
+        const data = await response.json();
+        // Converts backend response into JS object
+
+        document.getElementById("streamResult").textContent =
+            JSON.stringify(data, null, 2);
+        // Displays formatted JSON
+    }
+
+
+    // ============================
+    // FUNCTION: Load Local Streams
+    // ============================
+    async function loadLocalStreams() {
+        const response = await fetch("/local_streams");
+        // GET request to backend
+
+        const data = await response.json();
+        // Converts backend response into JS object
+
+        document.getElementById("localStreamsResult").textContent =
+            JSON.stringify(data, null, 2);
+        // Shows raw JSON list
+
+        const editor = document.getElementById("localStreamsEditor");
+        editor.innerHTML = "";
+        // Clears previous editor UI
+
+
+        // Build editable UI for each channel
+        data.forEach(channel => {
+
+            const div = document.createElement("div");
+            div.style.marginBottom = "10px";
+            // Container for each station editor
+
+
+            div.appendChild(document.createTextNode(channel.url));
+            // Shows the station's URL (unique identifier)
+
+            div.appendChild(document.createElement("br"));
+            // Line break
+
+
+            const nameInput = document.createElement("input");
+            nameInput.value = channel.name || "";
+            nameInput.placeholder = "Name";
+            // Input box for editing station name
+
+
+            const groupInput = document.createElement("input");
+            groupInput.value = channel.group || "";
+            groupInput.placeholder = "Group";
+            // Input box for editing station group
+
+
+            const saveBtn = document.createElement("button");
+            saveBtn.textContent = "Save";
+            // Button to save changes
+
+
+            saveBtn.onclick = async () => {
+                // When Save is clicked:
+
+                await fetch("/update_channel", {
+                    method: "PATCH", // Update request
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        url: channel.url, // Station identifier
+                        name: nameInput.value, // New name
+                        group: groupInput.value // New group
+                    })
+                });
+
+                loadLocalStreams(); // Refresh UI after saving
+            };
+
+
+            // Add inputs + button to the station editor
+            div.appendChild(nameInput);
+            div.appendChild(groupInput);
+            div.appendChild(saveBtn);
+
+            // Add station editor to page
+            editor.appendChild(div);
+        });
+    }
+
+
+</script> <!-- End of JavaScript -->
+
+</body> <!-- End of page content -->
+</html> <!-- End of document -->
