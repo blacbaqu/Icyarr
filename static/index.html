@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icyarr Control Panel</title>
+
+    <!-- ============================================================
+         BASIC INLINE STYLES
+         - Persistent player bar at bottom
+         - Simple spacing and layout
+         ============================================================ -->
+    <style>
+        /* Persistent audio player bar */
+        #playerBar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #222;
+            color: #fff;
+            padding: 8px 12px;
+            font-family: sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.4);
+        }
+
+        /* Text area inside player bar */
+        #playerInfo {
+            flex: 1;
+        }
+
+        /* Make room so page content doesn't overlap the player bar */
+        body {
+            margin-bottom: 60px;
+            font-family: sans-serif;
+        }
+
+        /* Simple spacing for sections */
+        h2 {
+            margin-top: 25px;
+        }
+
+        input {
+            margin: 4px;
+        }
+
+        button {
+            margin: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ============================================================
+         M3U LOADER SECTION
+         - User enters an M3U URL
+         - Calls /load_m3u (POST)
+         - Displays parsed channels
+         ============================================================ -->
+    <h2>M3U Loader</h2>
+
+    <input id="m3uInput" type="text" placeholder="Enter M3U URL">
+    <button onclick="loadM3U()">Load M3U</button>
+    <pre id="m3uResult"></pre>
+
+
+    <!-- ============================================================
+         STREAM TESTER SECTION
+         - User enters a stream URL
+         - Calls /test_stream (POST)
+         - Shows whether stream is valid audio
+         ============================================================ -->
+    <h2>Stream Tester</h2>
+
+    <input id="streamInput" type="text" placeholder="Enter Stream URL">
+    <button onclick="testStream()">Test Stream</button>
+    <pre id="streamResult"></pre>
+
+
+    <!-- ============================================================
+         LOCAL STREAM LIST
+         - Calls /local_streams (GET)
+         - Displays JSON list
+         - Builds editor UI for each channel:
+             * Name
+             * Group
+             * Save (PATCH)
+             * Delete (DELETE)
+             * Play (browser audio)
+         ============================================================ -->
+    <h2>Local Streams</h2>
+
+    <button onclick="loadLocalStreams()">Load Local Streams</button>
+
+    <div id="localStreamsEditor"></div>
+    <pre id="localStreamsResult"></pre>
+
+
+    <!-- ============================================================
+         PERSISTENT AUDIO PLAYER BAR
+         - Always visible at bottom
+         - Shows "Now Playing"
+         - Play / Pause / Stop
+         - Volume slider
+         ============================================================ -->
+    <div id="playerBar">
+        <div id="playerInfo">Now Playing: None</div>
+
+        <button id="playerPlayBtn">Play</button>
+        <button id="playerPauseBtn">Pause</button>
+        <button id="playerStopBtn">Stop</button>
+
+        <label>
+            Volume
+            <input id="playerVolume" type="range" min="0" max="1" step="0.05" value="1">
+        </label>
+    </div>
+
+
+<!-- ============================================================
+     JAVASCRIPT LOGIC
+     - Handles all API calls
+     - Controls audio player
+     - Updates UI
+     ============================================================ -->
+<script>
+    // ============================================================
+    // GLOBAL AUDIO PLAYER
+    // ============================================================
+    let audioPlayer = new Audio();
+    let currentStation = null;
+
+    // Player bar elements
+    const playerInfo   = document.getElementById("playerInfo");
+    const playerPlay   = document.getElementById("playerPlayBtn");
+    const playerPause  = document.getElementById("playerPauseBtn");
+    const playerStop   = document.getElementById("playerStopBtn");
+    const playerVolume = document.getElementById("playerVolume");
+
+    // ============================================================
+    // PLAYER BAR BUTTONS
+    // ============================================================
+    playerPlay.onclick = () => {
+        if (currentStation && currentStation.url) {
+            audioPlayer.play();
+        }
+    };
+
+    playerPause.onclick = () => {
+        audioPlayer.pause();
+    };
+
+    playerStop.onclick = () => {
+        audioPlayer.pause();
+        audioPlayer.src = "";
+        currentStation = null;
+        updatePlayerUI();
+    };
+
+    playerVolume.oninput = () => {
+        audioPlayer.volume = parseFloat(playerVolume.value);
+    };
+
+    // Update "Now Playing" text
+    function updatePlayerUI() {
+        if (!currentStation) {
+            playerInfo.textContent = "Now Playing: None";
+            return;
+        }
+
+        const name =
+            currentStation.name ||
+            currentStation.tvg_name ||
+            "Unknown Station";
+
+        const group = currentStation.group || "";
+
+        if (group) {
+            playerInfo.textContent = `Now Playing: ${name} — ${group}`;
+        } else {
+            playerInfo.textContent = `Now Playing: ${name}`;
+        }
+    }
+
+
+    // ============================================================
+    // LOAD M3U (POST /load_m3u)
+    // ============================================================
+    async function loadM3U() {
+        const url = document.getElementById("m3uInput").value;
+
+        const response = await fetch("/load_m3u", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url })
+        });
+
+        const data = await response.json();
+        document.getElementById("m3uResult").textContent =
+            JSON.stringify(data, null, 2);
+    }
+
+
+    // ============================================================
+    // TEST STREAM (POST /test_stream)
+    // ============================================================
+    async function testStream() {
+        const url = document.getElementById("streamInput").value;
+
+        const response = await fetch("/test_stream", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url })
+        });
+
+        const data = await response.json();
+        document.getElementById("streamResult").textContent =
+            JSON.stringify(data, null, 2);
+    }
+
+
+    // ============================================================
+    // LOAD LOCAL STREAMS (GET /local_streams)
+    // ============================================================
+    async function loadLocalStreams() {
+        const response = await fetch("/local_streams");
+        const data = await response.json();
+
+        // Show raw JSON
+        document.getElementById("localStreamsResult").textContent =
+            JSON.stringify(data, null, 2);
+
+        // Build editor UI
+        const editor = document.getElementById("localStreamsEditor");
+        editor.innerHTML = "";
+
+        data.forEach(channel => {
+
+            const div = document.createElement("div");
+            div.style.marginBottom = "10px";
+
+            // URL
+            div.appendChild(document.createTextNode(channel.url));
+            div.appendChild(document.createElement("br"));
+
+            // NAME INPUT
+            const nameInput = document.createElement("input");
+            nameInput.value = channel.name || "";
+            nameInput.placeholder = "Name";
+
+            // GROUP INPUT
+            const groupInput = document.createElement("input");
+            groupInput.value = channel.group || "";
+            groupInput.placeholder = "Group";
+
+            // SAVE BUTTON (PATCH /update_channel)
+            const saveBtn = document.createElement("button");
+            saveBtn.textContent = "Save";
+
+            saveBtn.onclick = async () => {
+                await fetch("/update_channel", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        url: channel.url,
+                        name: nameInput.value,
+                        group: groupInput.value
+                    })
+                });
+
+                loadLocalStreams();
+            };
+
+            // DELETE BUTTON (DELETE /delete_channel)
+            const deleteBtn = document.createElement("button");
+            deleteBtn.textContent = "Delete";
+            deleteBtn.style.marginLeft = "10px";
+
+            deleteBtn.onclick = async () => {
+                await fetch(`/delete_channel?url=${encodeURIComponent(channel.url)}`, {
+                    method: "DELETE"
+                });
+
+                loadLocalStreams();
+            };
+
+            // PLAY BUTTON (browser audio)
+            const playBtn = document.createElement("button");
+            playBtn.textContent = "Play";
+            playBtn.style.marginLeft = "10px";
+
+            playBtn.onclick = () => {
+                currentStation = channel;
+                audioPlayer.src = channel.url;
+                audioPlayer.play();
+                updatePlayerUI();
+            };
+
+            // Add elements to UI
+            div.appendChild(nameInput);
+            div.appendChild(groupInput);
+            div.appendChild(saveBtn);
+            div.appendChild(deleteBtn);
+            div.appendChild(playBtn);
+
+            editor.appendChild(div);
+        });
+    }
+
+</script>
+
+</body>
+</html>
