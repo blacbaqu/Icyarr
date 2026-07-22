@@ -1,7 +1,7 @@
 # ============================================================
 # ICYARR BACKEND — Dockerfile
 # ============================================================
-# Builds the FastAPI backend with SQLite persistence.
+# Builds the FastAPI backend with SQLite persistence + static UI.
 # ============================================================
 
 # Use official Python image
@@ -19,10 +19,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend source code
 COPY src/ ./src/
 
-# Copy SQLite database file (will be mounted as a volume)
+# Copy static frontend (Icyarr Control Panel)
+COPY static/ ./static/
+
+# Copy SQLite database file (can be mounted as a volume)
 COPY channel.db ./channel.db
 
-# Expose backend port (internal only — NPM will NOT use this)
+# Expose backend port
 EXPOSE 8000
 
 # Run FastAPI using uvicorn
