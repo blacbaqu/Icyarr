@@ -26,6 +26,16 @@ local_streams = load_channels()   # Persistent list loaded from channel.db
 
 
 # ============================================================
+# ROOT ENDPOINT (REPLACES OLD JINJA2 TEMPLATE ROUTE)
+# ============================================================
+
+@app.get("/")
+def root():
+    """Simple health/status endpoint."""
+    return {"status": "ok", "message": "Icyarr backend running"}
+
+
+# ============================================================
 # DATA MODELS
 # ============================================================
 
