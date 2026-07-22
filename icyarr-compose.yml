@@ -5,7 +5,7 @@ services:
     container_name: icyarr
     build:
       context: ./icyarr
-      dockerfile: Dockerfile
+      dockerfile: ./Dockerfile
     expose:
       - "8000"
     volumes:
