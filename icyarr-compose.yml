@@ -11,7 +11,13 @@ services:
     #   context: ./icyarr
     #   dockerfile: ./Dockerfile
 
-    # Icyarr serves both the API and the static control panel on port 8000
+    # Icyarr serves BOTH the static control panel AND the backend API
+    # on a single port (8000). Only this port needs to be published.
+    #
+    # The backend is NOT a separate service and does NOT need its own
+    # exposed port — FastAPI serves everything together.
+    #
+    # If you reverse-proxy through NPM, you only proxy this one port.
     ports:
       - "8000:8000"
 
@@ -22,6 +28,7 @@ services:
     restart: unless-stopped
 
     # Healthcheck (optional but recommended)
+    # Ensures the container is actually responding before marking it healthy.
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000"]
       interval: 30s
