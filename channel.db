@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS channels (
+    url TEXT PRIMARY KEY,
+    name TEXT,
+    group_title TEXT,
+    tvg_id TEXT,
+    tvg_name TEXT,
+    icy_title TEXT,
+    bitrate INTEGER
+);
