@@ -1,266 +1,60 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Icyarr Control Panel</title>
-    <style>
-        /* Simple styling for the persistent player bar */
-        #playerBar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #222;
-            color: #fff;
-            padding: 8px 12px;
-            font-family: sans-serif;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 -2px 5px rgba(0,0,0,0.4);
-        }
-        #playerInfo {
-            flex: 1;
-        }
-        body {
-            margin-bottom: 60px; /* Make room for player bar */
-        }
-    </style>
-</head>
+{% extends "base.html" %}
+{% block content %}
 
-<body>
+<!--
+    MAIN DASHBOARD WRAPPER
+    This page lists all radio stations returned by load_channels().
+    channels is a LIST of dicts, not a dict — that’s why we iterate
+    with "for channel in channels" instead of channels.items().
+-->
+<div class="space-y-4">
 
-    <!-- ========================= -->
-    <!-- M3U LOADER SECTION        -->
-    <!-- ========================= -->
-
-    <h2>M3U Loader</h2>
-
-    <input id="m3uInput" type="text" placeholder="Enter M3U URL">
-    <button onclick="loadM3U()">Load M3U</button>
-    <pre id="m3uResult"></pre>
-
-
-    <!-- ========================= -->
-    <!-- STREAM TESTER SECTION     -->
-    <!-- ========================= -->
-
-    <h2>Stream Tester</h2>
-
-    <input id="streamInput" type="text" placeholder="Enter Stream URL">
-    <button onclick="testStream()">Test Stream</button>
-    <pre id="streamResult"></pre>
-
-
-    <!-- ========================= -->
-    <!-- LOCAL STREAM LIST         -->
-    <!-- ========================= -->
-
-    <h2>Local Streams</h2>
-
-    <button onclick="loadLocalStreams()">Load Local Streams</button>
-
-    <div id="localStreamsEditor"></div>
-    <pre id="localStreamsResult"></pre>
-
-
-    <!-- ========================= -->
-    <!-- PERSISTENT PLAYER BAR     -->
-    <!-- ========================= -->
-
-    <div id="playerBar">
-        <div id="playerInfo">Now Playing: None</div>
-
-        <button id="playerPlayBtn">Play</button>
-        <button id="playerPauseBtn">Pause</button>
-        <button id="playerStopBtn">Stop</button>
-
-        <label>
-            Volume
-            <input id="playerVolume" type="range" min="0" max="1" step="0.05" value="1">
-        </label>
-    </div>
-
-
-<script>
-    // Global audio player and current station
-    let audioPlayer = new Audio();
-    let currentStation = null;
-
-    // Hook up player bar controls
-    const playerInfo   = document.getElementById("playerInfo");
-    const playerPlay   = document.getElementById("playerPlayBtn");
-    const playerPause  = document.getElementById("playerPauseBtn");
-    const playerStop   = document.getElementById("playerStopBtn");
-    const playerVolume = document.getElementById("playerVolume");
-
-    playerPlay.onclick = () => {
-        if (currentStation && currentStation.url) {
-            audioPlayer.play();
-        }
-    };
-
-    playerPause.onclick = () => {
-        audioPlayer.pause();
-    };
-
-    playerStop.onclick = () => {
-        audioPlayer.pause();
-        audioPlayer.src = "";
-        currentStation = null;
-        updatePlayerUI();
-    };
-
-    playerVolume.oninput = () => {
-        audioPlayer.volume = parseFloat(playerVolume.value);
-    };
-
-    function updatePlayerUI() {
-        if (!currentStation) {
-            playerInfo.textContent = "Now Playing: None";
-            return;
+    {# 
+        LOOP THROUGH CHANNELS
+        Each channel is a dict like:
+        {
+            "name": "WBBM",
+            "group": "Chicago"
         }
 
-        const name =
-            currentStation.name ||
-            currentStation.tvg_name ||
-            "Unknown Station";
+        We extract:
+        - name  → channel.name
+        - info  → the entire channel dict
+    #}
+    {% for channel in channels %}
+        {% set name = channel.name %}
+        {% set info = channel %}
 
-        const group = currentStation.group || "";
+        <!-- Card wrapper for each station -->
+        <div class="bg-gray-800 p-4 rounded flex flex-col space-y-4">
 
-        if (group) {
-            playerInfo.textContent = `Now Playing: ${name} — ${group}`;
-        } else {
-            playerInfo.textContent = `Now Playing: ${name}`;
-        }
-    }
+            <!-- Header row: station name, group, status, controls -->
+            <div class="flex justify-between items-start">
 
+                <!-- Station info block -->
+                <div class="space-y-1">
+                    <!-- Station name -->
+                    <div class="text-xl font-semibold">{{ name }}</div>
 
-    // ============================
-    // Load M3U
-    // ============================
-    async function loadM3U() {
-        const url = document.getElementById("m3uInput").value;
+                    <!-- Station group (region/category) -->
+                    <div class="text-sm text-gray-400">{{ info.group }}</div>
 
-        const response = await fetch("/load_m3u", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url })
-        });
+                    <!--
+                        STATUS INDICATOR
+                        HTMX auto-refreshes this div every 3 seconds.
+                        The backend route: /station/<name>/status
+                    -->
+                    <div
+                        hx-get="/station/{{ name }}/status"
+                        hx-trigger="load, every 3s"
+                        hx-target="#status-{{ name }}"
+                        hx-swap="innerHTML">
+                    </div>
 
-        const data = await response.json();
-        document.getElementById("m3uResult").textContent =
-            JSON.stringify(data, null, 2);
-    }
+                    <!-- HTMX target for status -->
+                    <div id="status-{{ name }}"></div>
+                </div>
 
-
-    // ============================
-    // Test Stream
-    // ============================
-    async function testStream() {
-        const url = document.getElementById("streamInput").value;
-
-        const response = await fetch("/test_stream", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url })
-        });
-
-        const data = await response.json();
-        document.getElementById("streamResult").textContent =
-            JSON.stringify(data, null, 2);
-    }
-
-
-    // ============================
-    // Load Local Streams
-    // ============================
-    async function loadLocalStreams() {
-        const response = await fetch("/local_streams");
-        const data = await response.json();
-
-        document.getElementById("localStreamsResult").textContent =
-            JSON.stringify(data, null, 2);
-
-        const editor = document.getElementById("localStreamsEditor");
-        editor.innerHTML = "";
-
-
-        // Build editor UI for each channel
-        data.forEach(channel => {
-
-            const div = document.createElement("div");
-            div.style.marginBottom = "10px";
-
-            // Display URL
-            div.appendChild(document.createTextNode(channel.url));
-            div.appendChild(document.createElement("br"));
-
-
-            // NAME INPUT
-            const nameInput = document.createElement("input");
-            nameInput.value = channel.name || "";
-            nameInput.placeholder = "Name";
-
-            // GROUP INPUT
-            const groupInput = document.createElement("input");
-            groupInput.value = channel.group || "";
-            groupInput.placeholder = "Group";
-
-            // SAVE BUTTON
-            const saveBtn = document.createElement("button");
-            saveBtn.textContent = "Save";
-
-            saveBtn.onclick = async () => {
-                await fetch("/update_channel", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        url: channel.url,
-                        name: nameInput.value,
-                        group: groupInput.value
-                    })
-                });
-
-                loadLocalStreams();
-            };
-
-            // DELETE BUTTON
-            const deleteBtn = document.createElement("button");
-            deleteBtn.textContent = "Delete";
-            deleteBtn.style.marginLeft = "10px";
-
-            deleteBtn.onclick = async () => {
-                await fetch(`/delete_channel?url=${encodeURIComponent(channel.url)}`, {
-                    method: "DELETE"
-                });
-
-                loadLocalStreams();
-            };
-
-            // PLAY BUTTON (per station)
-            const playBtn = document.createElement("button");
-            playBtn.textContent = "Play";
-            playBtn.style.marginLeft = "10px";
-
-            playBtn.onclick = () => {
-                currentStation = channel;
-                audioPlayer.src = channel.url;
-                audioPlayer.play();
-                updatePlayerUI();
-            };
-
-            // Add elements to UI
-            div.appendChild(nameInput);
-            div.appendChild(groupInput);
-            div.appendChild(saveBtn);
-            div.appendChild(deleteBtn);
-            div.appendChild(playBtn);
-
-            editor.appendChild(div);
-        });
-    }
-
-</script>
-
-</body>
-</html>
+                <!-- Control buttons: Start / Stop -->
+                <div class="space-x-2">
+                    <!-- Start station -->
