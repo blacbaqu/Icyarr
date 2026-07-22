@@ -4,18 +4,18 @@ services:
   icyarr:
     container_name: icyarr
     build:
-      context: .
+      context: ./icyarr
       dockerfile: Dockerfile
     expose:
       - "8000"
     volumes:
-      - ./channel.db:/app/channel.db
+      - ./icyarr/channel.db:/app/channel.db
     restart: unless-stopped
 
   icyarr-frontend:
     container_name: icyarr-frontend
     build:
-      context: ./frontend
+      context: ./icyarr/frontend
     ports:
       - "5173:5173"
     restart: unless-stopped
