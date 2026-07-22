@@ -1,8 +1,12 @@
 # ============================================================
 # ICYARR BACKEND — requirements.txt
 # ============================================================
-# These are the Python dependencies required for the FastAPI
-# backend, M3U loading, stream testing, and SQLite persistence.
+# Python dependencies for:
+# - FastAPI backend
+# - Uvicorn ASGI server
+# - M3U loading
+# - Stream testing
+# - SQLite persistence (built-in)
 # ============================================================
 
 # FastAPI framework for building the backend API
@@ -16,7 +20,3 @@ requests
 
 # Data validation and request models (M3URequest, StreamRequest, etc.)
 pydantic
-
-# SQLite binary package — ensures SQLite works inside Python slim images
-# (Python includes sqlite3, but this prevents missing extension issues)
-sqlite3-binary
