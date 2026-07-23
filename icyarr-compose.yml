@@ -2,36 +2,31 @@ version: "3.9"
 
 services:
   icyarr:
+    # The container will be named "icyarr" instead of a random hash
     container_name: icyarr
 
-    # Pull or build the Icyarr image
-    image: ghcr.io/yourname/icyarr:latest
-    # OR:
-    # build:
-    #   context: ./icyarr
-    #   dockerfile: ./Dockerfile
+    # Pull the published image from GitHub Container Registry
+    # Replace "yourname" with your actual GitHub username
+    image: ghcr.io/blacbaqu/icyarr:latest
 
-    # Icyarr serves BOTH the static control panel AND the backend API
-    # on a single port (8000). Only this port needs to be published.
-    #
-    # The backend is NOT a separate service and does NOT need its own
-    # exposed port — FastAPI serves everything together.
-    #
-    # If you reverse-proxy through NPM, you only proxy this one port.
+    # Expose Icyarr's single unified port:
+    # FastAPI backend + static frontend both run on port 8000
     ports:
       - "8000:8000"
 
-    # Persist the SQLite database outside the container
+    # Persist the SQLite database so container rebuilds don't wipe data
+    # This maps the local file ./channel.db into the container at /app/channel.db
     volumes:
-      - ./icyarr/channel.db:/app/channel.db
+      - ./channel.db:/app/channel.db
 
+    # Automatically restart unless you manually stop it
     restart: unless-stopped
 
-    # Healthcheck (optional but recommended)
-    # Ensures the container is actually responding before marking it healthy.
+    # Optional healthcheck to ensure the API is responding
     healthcheck:
+      # curl -f returns success only if HTTP status is 200–299
       test: ["CMD", "curl", "-f", "http://localhost:8000"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 10s
+      interval: 30s      # run healthcheck every 30 seconds
+      timeout: 10s       # give the check 10 seconds to respond
+      retries: 5         # mark container unhealthy after 5 failures
+      start_period: 10s  # wait 10 seconds before starting checks
